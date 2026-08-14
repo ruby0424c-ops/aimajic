@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 마법사 묵호 추억 갤러리</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; }
+  canvas { display: block; }
+
+  #blocker { position: absolute; inset: 0; background: rgba(20,20,22,0.92); display: flex; align-items: center; justify-content: center; z-index: 20; }
+  #instructions { color: #f4f1ea; text-align: center; max-width: 520px; padding: 40px; border: 1px solid rgba(255,255,255,0.2); background: rgba(30,30,32,0.6); border-radius: 6px; }
+  #instructions h1 { font-size: 26px; font-weight: 600; letter-spacing: 1px; margin: 0 0 6px 0; color: #f4f1ea; }
+  #instructions h2 { font-size: 12px; font-weight: 400; letter-spacing: 3px; margin: 0 0 24px 0; color: #9a9a9a; text-transform: uppercase; }
+  #instructions p { font-size: 14px; line-height: 1.85; color: #d8d8d8; margin: 4px 0; }
+  #instructions .key { display: inline-block; min-width: 20px; padding: 2px 8px; margin: 0 3px; border: 1px solid #d8d8d8; border-radius: 3px; font-size: 12px; }
+  #fileStatus { font-size: 12.5px; color: #b0b0b0; margin: 14px 0 18px 0; min-height: 16px; }
+  #enterBtn { font-family: inherit; font-size: 15px; letter-spacing: 1px; color: #1c1c1c; background: #f4f1ea; border: none; border-radius: 4px; padding: 12px 30px; cursor: pointer; transition: opacity 0.2s, transform 0.2s; }
+  #enterBtn:disabled { opacity: 0.35; cursor: not-allowed; }
+  #enterBtn:not(:disabled):hover { transform: translateY(-1px); }
+
+  #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(0,0,0,0.7); z-index: 10; pointer-events: none; box-shadow: 0 0 3px rgba(255,255,255,0.8); }
+  #hud { position: absolute; bottom: 16px; left: 16px; z-index: 10; color: rgba(60,60,60,0.7); font-size: 11px; letter-spacing: 1px; pointer-events: none; }
+  #label { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); color: #fff; background: rgba(20,20,20,0.75); padding: 10px 18px; border-radius: 3px; font-size: 14px; letter-spacing: 1px; z-index: 10; opacity: 0; transition: opacity 0.25s ease; pointer-events: none; white-space: nowrap; }
+  #nowPlaying { position: absolute; top: 16px; right: 16px; z-index: 10; color: rgba(60,60,60,0.75); font-size: 11.5px; letter-spacing: 0.5px; pointer-events: none; text-align: right; opacity: 0; transition: opacity 0.3s ease; }
+  #loadingStatus { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 10; color: #fff; background: rgba(20,20,20,0.7); padding: 8px 16px; border-radius: 3px; font-size: 12.5px; letter-spacing: 0.5px; pointer-events: none; opacity: 0; transition: opacity 0.3s ease; }
+</style>
+</head>
+<body>
+
+<div id="blocker">
+  <div id="instructions">
+    <h1>AI 마법사 묵호 추억 갤러리</h1>
+    <h2>AI WIZARD MUKHO — MEMORY GALLERY</h2>
+    <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 이동 &nbsp; / &nbsp; 마우스로 시선 회전</p>
+    <p><span class="key">SPACE</span> 점프 &nbsp; / &nbsp; <span class="key">SHIFT</span> 달리기</p>
+    <div id="fileStatus">저장소의 사진을 불러오는 중...</div>
+    <button id="enterBtn" disabled>클릭하여 입장하기</button>
+  </div>
+</div>
+
+<div id="crosshair"></div>
+<div id="hud">WASD 이동 · SPACE 점프 · SHIFT 달리기 · MOUSE 시선</div>
+<div id="label"></div>
+<div id="nowPlaying"></div>
+<div id="loadingStatus"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+/* ---------------------------------------------------------
+   깃허브 저장소 설정
+   - 이 저장소의 "photos" 폴더 안에 있는 jpg를 자동으로 불러온다.
+   - 저장소 이름/계정을 바꾸면 아래 두 값을 그에 맞게 수정해야 한다.
+--------------------------------------------------------- */
+const GITHUB_OWNER = 'ruby0424c-ops';
+const GITHUB_REPO   = 'aimajic';
+const GITHUB_BRANCH = 'main';
+const PHOTOS_PATH   = 'photos';
+
+/* ---------------------------------------------------------
+   기본 설정 - 회색 바닥 / 흰 벽의 단순한 직선 복도형 갤러리
+   전부 unlit(MeshBasicMaterial) 머티리얼만 사용해 조명 계산 자체가 없다 -> 가볍고 버퍼링 없음
+--------------------------------------------------------- */
+const CORR_W = 6;
+const WALL_H = 3.2;
+const WALL_MARGIN = 0.6;
+const FRAME_W = 1.7, FRAME_H = 1.3;
+const SPACING = 2.1;
+const START_BUFFER = 5.5;
+const END_BUFFER = 3;
+let CORR_LEN = 18;
+
+const FLOOR_COLOR = 0xb0b0b0;
+const WALL_COLOR  = 0xffffff;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe8e8e8);
+
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 1.6, CORR_LEN/2 - 2.5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+/* ---------------------------------------------------------
+   텍스트 캔버스 텍스처 (입구 사인용, 1회만 생성)
+--------------------------------------------------------- */
+function makeTextTexture(lines, opts = {}) {
+  const w = opts.w || 1024, h = opts.h || 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = opts.bg || 'rgba(0,0,0,0)';
+  ctx.fillRect(0, 0, w, h);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const mainSize = opts.mainSize || 80, subSize = opts.subSize || 28;
+  ctx.font = `700 ${mainSize}px 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif`;
+  ctx.fillStyle = opts.color || '#1c1c1c';
+  ctx.fillText(lines[0], w/2, h/2 - (lines[1] ? mainSize*0.35 : 0));
+  if (lines[1]) {
+    ctx.font = `400 ${subSize}px 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif`;
+    ctx.fillStyle = opts.subColor || '#8a8a8a';
+    ctx.letterSpacing = '4px';
+    ctx.fillText(lines[1], w/2, h/2 + mainSize*0.55);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/* ---------------------------------------------------------
+   사진을 가벼운 텍스처로 변환 (원본 대신 축소본 사용, 밉맵 생성 안 함)
+--------------------------------------------------------- */
+function makeLightTexture(img, maxDim = 900) {
+  let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  if (Math.max(w, h) > maxDim) {
+    const scale = maxDim / Math.max(w, h);
+    w = Math.max(1, Math.round(w * scale));
+    h = Math.max(1, Math.round(h * scale));
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
+}
+
+/* ---------------------------------------------------------
+   깔끔한 액자 (프레임 + 매트 + 사진, 전부 unlit 평면 3장)
+--------------------------------------------------------- */
+const artworkHitboxes = [];
+
+function mountArtwork({ x, y, z, ry, title, sub, img }) {
+  const group = new THREE.Group();
+
+  let w = FRAME_W, h = FRAME_H;
+  if (img) {
+    const aspect = (img.naturalWidth || img.width) / (img.naturalHeight || img.height);
+    const frameAspect = FRAME_W / FRAME_H;
+    if (aspect > frameAspect) { w = FRAME_W; h = FRAME_W / aspect; }
+    else { h = FRAME_H; w = FRAME_H * aspect; }
+  }
+
+  const frame = new THREE.Mesh(
+    new THREE.PlaneGeometry(FRAME_W + 0.12, FRAME_H + 0.12),
+    new THREE.MeshBasicMaterial({ color: 0x222222 })
+  );
+  group.add(frame);
+
+  const mat = new THREE.Mesh(
+    new THREE.PlaneGeometry(FRAME_W + 0.04, FRAME_H + 0.04),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  mat.position.z = 0.005;
+  group.add(mat);
+
+  const tex = img ? makeLightTexture(img) : null;
+  const art = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ map: tex, color: tex ? 0xffffff : 0xd8d8d8 })
+  );
+  art.position.z = 0.01;
+  group.add(art);
+
+  group.position.set(x, y, z);
+  group.rotation.y = ry;
+  scene.add(group);
+  artworkHitboxes.push({ group, title, sub });
+  return group;
+}
+
+/* ---------------------------------------------------------
+   배경음악: 저작권 걱정 없는 생성형 앰비언트 사운드
+   (음원 파일을 전혀 쓰지 않고, 브라우저에서 그때그때 소리를 합성한다)
+--------------------------------------------------------- */
+const nowPlayingEl = document.getElementById('nowPlaying');
+let audioCtx = null;
+
+function startAmbientMusic() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  const master = audioCtx.createGain();
+  master.gain.value = 0.07;
+  master.connect(audioCtx.destination);
+
+  const delay = audioCtx.createDelay();
+  delay.delayTime.value = 0.45;
+  const feedback = audioCtx.createGain();
+  feedback.gain.value = 0.32;
+  delay.connect(feedback);
+  feedback.connect(delay);
+  delay.connect(master);
+
+  const scale = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25]; // C 펜타토닉 계열
+
+  function pluck() {
+    if (!audioCtx) return;
+    const base = scale[Math.floor(Math.random() * scale.length)];
+    const freq = Math.random() < 0.3 ? base * 2 : base;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0;
+    osc.connect(gain);
+    gain.connect(master);
+    gain.connect(delay);
+    const now = audioCtx.currentTime;
+    gain.gain.linearRampToValueAtTime(0.45, now + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 2.4);
+    osc.start(now);
+    osc.stop(now + 2.5);
+    setTimeout(pluck, 1300 + Math.random() * 1700);
+  }
+  pluck();
+
+  const pad = audioCtx.createOscillator();
+  pad.type = 'sine';
+  pad.frequency.value = 130.81; // C3 낮은 드론
+  const padGain = audioCtx.createGain();
+  padGain.gain.value = 0.02;
+  pad.connect(padGain);
+  padGain.connect(master);
+  pad.start();
+
+  nowPlayingEl.textContent = '♪ 앰비언트 배경음 (생성형)';
+  nowPlayingEl.style.opacity = '1';
+}
+
+/* ---------------------------------------------------------
+   깃허브 저장소의 photos 폴더 목록을 자동으로 가져오기
+--------------------------------------------------------- */
+async function fetchPhotoList() {
+  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${PHOTOS_PATH}?ref=${GITHUB_BRANCH}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.filter((f) => f.type === 'file' && /\.(jpe?g)$/i.test(f.name));
+  } catch (e) {
+    return [];
+  }
+}
+
+function loadImageEl(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+/* ---------------------------------------------------------
+   방(바닥/벽) - 즉시 만들어진다
+--------------------------------------------------------- */
+function buildRoom(imageCount) {
+  const perSide = Math.max(1, Math.ceil(imageCount / 2));
+  const usableLen = Math.max(perSide - 1, 0) * SPACING;
+  CORR_LEN = Math.max(18, usableLen + START_BUFFER + END_BUFFER);
+  camera.position.set(0, 1.6, CORR_LEN/2 - 2.5);
+
+  const floorMat = new THREE.MeshBasicMaterial({ color: FLOOR_COLOR });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(CORR_W, CORR_LEN), floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
+
+  const wallMat = new THREE.MeshBasicMaterial({ color: WALL_COLOR });
+  const ceilMat = new THREE.MeshBasicMaterial({ color: 0xf5f5f5 });
+
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(CORR_W, CORR_LEN), ceilMat);
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.y = WALL_H;
+  scene.add(ceiling);
+
+  function addWall(w, h, x, y, z, ry) {
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat);
+    wall.position.set(x, y, z);
+    wall.rotation.y = ry;
+    scene.add(wall);
+  }
+  addWall(CORR_LEN, WALL_H, -CORR_W/2, WALL_H/2, 0, Math.PI/2);
+  addWall(CORR_LEN, WALL_H, CORR_W/2, WALL_H/2, 0, -Math.PI/2);
+  addWall(CORR_W, WALL_H, 0, WALL_H/2, -CORR_LEN/2, 0);
+
+  const doorW = 2.6;
+  const southSegW = (CORR_W - doorW) / 2;
+  if (southSegW > 0.05) {
+    [-(doorW/2 + southSegW/2), (doorW/2 + southSegW/2)].forEach((x) => {
+      addWall(southSegW, WALL_H, x, WALL_H/2, CORR_LEN/2, Math.PI);
+    });
+  }
+
+  const signTex = makeTextTexture(
+    ['AI 마법사 묵호 추억 갤러리', 'AI WIZARD MUKHO — MEMORY GALLERY'],
+    { mainSize: 58, subSize: 20 }
+  );
+  const sign = new THREE.Mesh(
+    new THREE.PlaneGeometry(5.6, 1.4),
+    new THREE.MeshBasicMaterial({ map: signTex, transparent: true })
+  );
+  sign.position.set(0, WALL_H - 0.3, CORR_LEN/2 - 0.03);
+  sign.rotation.y = Math.PI;
+  scene.add(sign);
+
+  return { zTop: CORR_LEN/2 - START_BUFFER };
+}
+
+/* ---------------------------------------------------------
+   작품을 하나씩 스트리밍 배치 (동시 4장까지만 디코딩, 로드되는 대로 즉시 표시)
+--------------------------------------------------------- */
+const loadingStatusEl = document.getElementById('loadingStatus');
+
+async function mountArtworksStreaming(photoFiles, layout) {
+  const { zTop } = layout;
+  const total = photoFiles.length;
+  if (total === 0) return;
+  let done = 0;
+  loadingStatusEl.textContent = `사진을 불러오는 중... (0/${total})`;
+  loadingStatusEl.style.opacity = '1';
+
+  let nextIndex = 0;
+  const CONCURRENCY = 4;
+
+  async function worker() {
+    while (nextIndex < photoFiles.length) {
+      const i = nextIndex++;
+      const file = photoFiles[i];
+      const img = await loadImageEl(file.download_url);
+      const side = i % 2 === 0 ? -1 : 1;
+      const slot = Math.floor(i / 2);
+      const z = zTop - slot * SPACING;
+      mountArtwork({
+        x: side * (CORR_W/2 - 0.08), y: 1.7, z, ry: side < 0 ? Math.PI/2 : -Math.PI/2,
+        title: `작품 ${i + 1}`, sub: file.name, img
+      });
+      done++;
+      loadingStatusEl.textContent = `사진을 불러오는 중... (${done}/${total})`;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, photoFiles.length) }, worker));
+  loadingStatusEl.style.opacity = '0';
+}
+
+/* ---------------------------------------------------------
+   입장 처리
+--------------------------------------------------------- */
+const controls = new PointerLockControls(camera, renderer.domElement);
+const blocker = document.getElementById('blocker');
+const enterBtn = document.getElementById('enterBtn');
+const fileStatus = document.getElementById('fileStatus');
+const label = document.getElementById('label');
+
+let photoFiles = [];
+let sceneBuilt = false;
+let buildStarted = false;
+
+// 페이지가 열리자마자(사용자 동작 없이) 저장소의 photos 폴더 목록을 미리 가져온다.
+(async () => {
+  photoFiles = await fetchPhotoList();
+  if (photoFiles.length === 0) {
+    fileStatus.textContent = `"${PHOTOS_PATH}" 폴더에서 jpg를 찾지 못했습니다. 저장소에 사진을 올려주세요.`;
+  } else {
+    fileStatus.textContent = `사진 ${photoFiles.length}장을 찾았습니다.`;
+  }
+  enterBtn.disabled = false; // 사진이 없어도 빈 갤러리는 구경할 수 있게 허용
+})();
+
+// 포인터락은 클릭 이벤트 안에서 즉시(동기적으로) 호출해야 브라우저가 허용한다.
+enterBtn.addEventListener('click', () => {
+  controls.lock();
+  startAmbientMusic();
+  if (!buildStarted) {
+    buildStarted = true;
+    const layout = buildRoom(photoFiles.length);
+    sceneBuilt = true;
+    mountArtworksStreaming(photoFiles, layout);
+  }
+});
+
+controls.addEventListener('lock', () => { blocker.style.display = 'none'; });
+controls.addEventListener('unlock', () => { blocker.style.display = 'flex'; });
+
+/* ---------------------------------------------------------
+   1인칭 이동 + 중력/점프/달리기
+--------------------------------------------------------- */
+const move = { forward: false, back: false, left: false, right: false, run: false };
+let velocityY = 0;
+let canJump = true;
+const EYE_HEIGHT = 1.6;
+const GRAVITY = 20;
+const JUMP_SPEED = 7.5;
+const WALK_SPEED = 3.2;
+const RUN_SPEED = 6.0;
+
+document.addEventListener('keydown', (e) => {
+  switch (e.code) {
+    case 'KeyW': case 'ArrowUp': move.forward = true; break;
+    case 'KeyS': case 'ArrowDown': move.back = true; break;
+    case 'KeyA': case 'ArrowLeft': move.left = true; break;
+    case 'KeyD': case 'ArrowRight': move.right = true; break;
+    case 'ShiftLeft': case 'ShiftRight': move.run = true; break;
+    case 'Space': if (canJump) { velocityY = JUMP_SPEED; canJump = false; } break;
+  }
+});
+document.addEventListener('keyup', (e) => {
+  switch (e.code) {
+    case 'KeyW': case 'ArrowUp': move.forward = false; break;
+    case 'KeyS': case 'ArrowDown': move.back = false; break;
+    case 'KeyA': case 'ArrowLeft': move.left = false; break;
+    case 'KeyD': case 'ArrowRight': move.right = false; break;
+    case 'ShiftLeft': case 'ShiftRight': move.run = false; break;
+  }
+});
+
+const forwardVec = new THREE.Vector3();
+const rightVec = new THREE.Vector3();
+const moveVec = new THREE.Vector3();
+
+function updateMovement(delta) {
+  const speed = move.run ? RUN_SPEED : WALK_SPEED;
+  camera.getWorldDirection(forwardVec);
+  forwardVec.y = 0; forwardVec.normalize();
+  rightVec.crossVectors(forwardVec, camera.up).normalize();
+
+  moveVec.set(0, 0, 0);
+  if (move.forward) moveVec.add(forwardVec);
+  if (move.back) moveVec.sub(forwardVec);
+  if (move.right) moveVec.add(rightVec);
+  if (move.left) moveVec.sub(rightVec);
+  if (moveVec.lengthSq() > 0) moveVec.normalize().multiplyScalar(speed * delta);
+
+  const pos = controls.getObject().position;
+  const halfW = CORR_W/2 - WALL_MARGIN;
+  const halfD = CORR_LEN/2 - WALL_MARGIN;
+
+  pos.x = Math.max(-halfW, Math.min(halfW, pos.x + moveVec.x));
+  pos.z = Math.max(-halfD, Math.min(halfD, pos.z + moveVec.z));
+
+  velocityY -= GRAVITY * delta;
+  pos.y += velocityY * delta;
+  if (pos.y <= EYE_HEIGHT) { pos.y = EYE_HEIGHT; velocityY = 0; canJump = true; }
+}
+
+function updateLabels() {
+  const camPos = controls.getObject().position;
+  let nearest = null, nearestDist = 2.6;
+  for (const a of artworkHitboxes) {
+    const d = camPos.distanceTo(a.group.position);
+    if (d < nearestDist) { nearestDist = d; nearest = a; }
+  }
+  if (nearest) { label.textContent = `${nearest.title} — ${nearest.sub}`; label.style.opacity = '1'; }
+  else { label.style.opacity = '0'; }
+}
+
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = Math.min(clock.getDelta(), 0.05);
+  if (controls.isLocked && sceneBuilt) { updateMovement(delta); updateLabels(); }
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
