@@ -3,492 +3,587 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 마법사 묵호 추억 갤러리</title>
+<title>AI마법사 묵호를 추억하다</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Nanum+Pen+Script&family=Gowun+Dodum&display=swap" rel="stylesheet">
+
 <style>
-  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; }
-  canvas { display: block; }
+  /* =========================================================
+     ⚓ 설정: 아래 값만 바꾸면 내 GitHub 저장소 사진이 자동으로 뜹니다.
+     JS 맨 위 CONFIG 부분을 확인하세요 (owner / repo / branch / path)
+     ========================================================= */
 
-  #blocker { position: absolute; inset: 0; background: rgba(20,20,22,0.92); display: flex; align-items: center; justify-content: center; z-index: 20; }
-  #instructions { color: #f4f1ea; text-align: center; max-width: 520px; padding: 40px; border: 1px solid rgba(255,255,255,0.2); background: rgba(30,30,32,0.6); border-radius: 6px; }
-  #instructions h1 { font-size: 26px; font-weight: 600; letter-spacing: 1px; margin: 0 0 6px 0; color: #f4f1ea; }
-  #instructions h2 { font-size: 12px; font-weight: 400; letter-spacing: 3px; margin: 0 0 24px 0; color: #9a9a9a; text-transform: uppercase; }
-  #instructions p { font-size: 14px; line-height: 1.85; color: #d8d8d8; margin: 4px 0; }
-  #instructions .key { display: inline-block; min-width: 20px; padding: 2px 8px; margin: 0 3px; border: 1px solid #d8d8d8; border-radius: 3px; font-size: 12px; }
-  #fileStatus { font-size: 12.5px; color: #b0b0b0; margin: 14px 0 18px 0; min-height: 16px; }
-  #enterBtn { font-family: inherit; font-size: 15px; letter-spacing: 1px; color: #1c1c1c; background: #f4f1ea; border: none; border-radius: 4px; padding: 12px 30px; cursor: pointer; transition: opacity 0.2s, transform 0.2s; }
-  #enterBtn:disabled { opacity: 0.35; cursor: not-allowed; }
-  #enterBtn:not(:disabled):hover { transform: translateY(-1px); }
+  :root{
+    --paper:#FBF2E3;
+    --paper-deep:#F3E6CF;
+    --ink:#4A3527;
+    --sea:#2E5266;
+    --sea-deep:#1F3A47;
+    --seafoam:#8FC1BA;
+    --sunset:#E8825A;
+    --mustard:#E3A857;
+    --mural-pink:#E8A0A0;
+  }
 
-  #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(0,0,0,0.7); z-index: 10; pointer-events: none; box-shadow: 0 0 3px rgba(255,255,255,0.8); }
-  #hud { position: absolute; bottom: 16px; left: 16px; z-index: 10; color: rgba(60,60,60,0.7); font-size: 11px; letter-spacing: 1px; pointer-events: none; }
-  #label { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); color: #fff; background: rgba(20,20,20,0.75); padding: 10px 18px; border-radius: 3px; font-size: 14px; letter-spacing: 1px; z-index: 10; opacity: 0; transition: opacity 0.25s ease; pointer-events: none; white-space: nowrap; }
-  #nowPlaying { position: absolute; top: 16px; right: 16px; z-index: 10; color: rgba(60,60,60,0.75); font-size: 11.5px; letter-spacing: 0.5px; pointer-events: none; text-align: right; opacity: 0; transition: opacity 0.3s ease; }
-  #loadingStatus { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 10; color: #fff; background: rgba(20,20,20,0.7); padding: 8px 16px; border-radius: 3px; font-size: 12.5px; letter-spacing: 0.5px; pointer-events: none; opacity: 0; transition: opacity 0.3s ease; }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Gowun Dodum', sans-serif;
+    overflow-x:hidden;
+  }
+
+  body{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding: 6vh 5vw 4vh;
+    background-image:
+      radial-gradient(ellipse at 15% 10%, rgba(232,160,160,0.20), transparent 45%),
+      radial-gradient(ellipse at 85% 15%, rgba(143,193,186,0.25), transparent 50%),
+      radial-gradient(ellipse at 50% 100%, rgba(227,168,87,0.18), transparent 55%);
+  }
+
+  /* 은은한 종이 질감 */
+  .grain{
+    position:fixed; inset:0; pointer-events:none; z-index:1;
+    opacity:0.05; mix-blend-mode:multiply;
+  }
+
+  header{
+    position:relative;
+    text-align:center;
+    z-index:2;
+    margin-bottom: 0.4rem;
+  }
+
+  h1{
+    font-family:'Gaegu', sans-serif;
+    font-weight:700;
+    font-size: clamp(1.9rem, 5vw, 3.1rem);
+    color:var(--sea-deep);
+    margin: 0 0 0.3rem;
+    letter-spacing: 0.5px;
+    text-shadow: 2px 2px 0 rgba(232,130,90,0.18);
+  }
+
+  .quote{
+    font-family:'Nanum Pen Script', cursive;
+    font-size: clamp(1.25rem, 2.6vw, 1.7rem);
+    color: var(--sunset);
+    margin: 0.2rem 0 0.6rem;
+    transform: rotate(-1deg);
+  }
+
+  .wave-wrap{
+    width: min(560px, 80vw);
+    height: 26px;
+    overflow:hidden;
+    position:relative;
+    margin: 0.3rem auto 1.4rem;
+    opacity:0.85;
+  }
+  .wave-track{
+    position:absolute;
+    top:0; left:0;
+    width:200%;
+    height:100%;
+    display:flex;
+    animation: waveDrift 9s linear infinite;
+  }
+  .wave-track svg{ width:50%; height:100%; flex-shrink:0; }
+  @keyframes waveDrift{
+    from{ transform: translateX(0); }
+    to{ transform: translateX(-50%); }
+  }
+
+  main{
+    position:relative;
+    z-index:2;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    width:100%;
+  }
+
+  .stage-wrap{
+    position:relative;
+    width: min(88vw, 620px);
+  }
+
+  .frame{
+    position:relative;
+    background: var(--paper);
+    padding: 16px 16px 46px;
+    border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
+    box-shadow: 0 18px 40px rgba(46,82,102,0.22), 0 2px 0 rgba(255,255,255,0.6) inset;
+    transform: rotate(-0.6deg);
+    transition: transform .6s ease;
+  }
+
+  .stage{
+    position:relative;
+    width:100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 240px 14px 210px 14px / 14px 210px 14px 240px;
+    overflow:hidden;
+    background: linear-gradient(135deg, var(--sea), var(--sea-deep));
+  }
+
+  .slide{
+    position:absolute; inset:0;
+    background-size:cover;
+    background-position:center;
+    opacity:0;
+    transform: scale(1.0);
+    transition: opacity 1.6s ease;
+    animation: kenburns 12s ease-in-out infinite alternate;
+  }
+  .slide.active{ opacity:1; }
+  @keyframes kenburns{
+    from{ transform: scale(1.0); }
+    to{ transform: scale(1.09); }
+  }
+
+  .status{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    text-align:center;
+    color:#fff;
+    font-family:'Gowun Dodum', sans-serif;
+    font-size:0.95rem;
+    line-height:1.6;
+    padding: 2rem;
+    background: linear-gradient(135deg, var(--sea), var(--sea-deep));
+  }
+  .status a{ color: var(--mustard); }
+
+  .badge{
+    position:absolute;
+    bottom: 12px; right: 16px;
+    background: rgba(74,53,39,0.55);
+    color:#fff;
+    font-family:'Gaegu', sans-serif;
+    font-size:0.85rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+    letter-spacing: 0.5px;
+    z-index:3;
+  }
+
+  /* 워시테이프 장식 */
+  .tape{
+    position:absolute;
+    width: 78px; height: 26px;
+    opacity:0.85;
+    z-index:4;
+  }
+  .tape.tl{
+    top:-10px; left: 18px;
+    background: repeating-linear-gradient(45deg, var(--mural-pink), var(--mural-pink) 8px, #f4c9c9 8px, #f4c9c9 16px);
+    transform: rotate(-10deg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  }
+  .tape.br{
+    bottom: 22px; right: 14px;
+    background: repeating-linear-gradient(45deg, var(--mustard), var(--mustard) 8px, #efc27f 8px, #efc27f 16px);
+    transform: rotate(8deg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  }
+
+  /* 떠다니는 장식 (등대 불빛 반짝임, 갈매기) */
+  .deco{
+    position:absolute;
+    z-index:0;
+    opacity:0.85;
+    animation: float 6s ease-in-out infinite;
+  }
+  .deco.gull1{ top: 4vh; left: 6vw; width: 46px; animation-duration:7s; }
+  .deco.gull2{ top: 9vh; right: 8vw; width: 34px; animation-duration:5.5s; animation-delay:.6s; }
+  .deco.boat{ bottom: 4vh; left: 7vw; width: 60px; animation-duration:8s; }
+  @keyframes float{
+    0%,100%{ transform: translateY(0px); }
+    50%{ transform: translateY(-10px); }
+  }
+
+  /* 음악 플레이어 */
+  .player{
+    position:relative;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top: 1.1rem;
+    padding: 8px 16px 8px 8px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(46,82,102,0.15);
+    border-radius: 999px;
+    box-shadow: 0 6px 16px rgba(46,82,102,0.12);
+    max-width: min(90vw, 380px);
+  }
+
+  .disc{
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, var(--paper) 0 6px, var(--sea-deep) 7px 100%);
+    border: 2px solid var(--sea-deep);
+    flex-shrink:0;
+    animation: spin 3.5s linear infinite;
+    animation-play-state: paused;
+  }
+  .player.playing .disc{ animation-play-state: running; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  .play-toggle{
+    width: 30px; height: 30px;
+    flex-shrink:0;
+    border:none;
+    border-radius:50%;
+    background: var(--sunset);
+    color:#fff;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 6px rgba(232,130,90,0.4);
+  }
+  .play-toggle:hover{ filter: brightness(1.06); }
+
+  .track-info{
+    font-family:'Gaegu', sans-serif;
+    font-size: 0.92rem;
+    color: var(--sea-deep);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    flex:1;
+  }
+
+  .music-start{
+    position:fixed;
+    inset:0;
+    z-index: 10;
+    background: rgba(31,58,71,0.55);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    backdrop-filter: blur(2px);
+  }
+  .music-start button{
+    font-family:'Gaegu', sans-serif;
+    font-size: 1.15rem;
+    font-weight:700;
+    color: var(--sea-deep);
+    background: var(--paper);
+    border: none;
+    padding: 14px 26px;
+    border-radius: 999px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+    cursor:pointer;
+  }
+  .music-start button:hover{ filter: brightness(1.03); }
+  .music-start.hidden{ display:none; }
+
+  footer{
+    position:relative;
+    z-index:2;
+    margin-top: 1.6rem;
+    text-align:center;
+    color: var(--sea-deep);
+    opacity:0.75;
+    font-size:0.85rem;
+    letter-spacing:0.3px;
+  }
+
+  @media (max-width: 520px){
+    .stage{ aspect-ratio: 3 / 4; }
+    .deco{ display:none; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .slide{ animation:none; transition: opacity .4s ease; }
+    .wave-track{ animation:none; }
+    .deco{ animation:none; }
+  }
 </style>
 </head>
 <body>
 
-<div id="blocker">
-  <div id="instructions">
-    <h1>AI 마법사 묵호 추억 갤러리</h1>
-    <h2>AI WIZARD MUKHO — MEMORY GALLERY</h2>
-    <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 이동 &nbsp; / &nbsp; 마우스로 시선 회전</p>
-    <p><span class="key">SPACE</span> 점프 &nbsp; / &nbsp; <span class="key">SHIFT</span> 달리기</p>
-    <div id="fileStatus">저장소의 사진을 불러오는 중...</div>
-    <button id="enterBtn" disabled>클릭하여 입장하기</button>
+<svg class="grain" width="100%" height="100%">
+  <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/></filter>
+  <rect width="100%" height="100%" filter="url(#noise)"/>
+</svg>
+
+<!-- 떠다니는 손그림 장식들 -->
+<svg class="deco gull1" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M2 14 Q15 -2 30 12 Q45 -2 58 14" stroke="#2E5266" stroke-width="2.4" stroke-linecap="round"/>
+</svg>
+<svg class="deco gull2" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M2 14 Q15 -2 30 12 Q45 -2 58 14" stroke="#2E5266" stroke-width="2.4" stroke-linecap="round"/>
+</svg>
+<svg class="deco boat" viewBox="0 0 80 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 40 L70 40 L60 54 L20 54 Z" fill="#E8825A"/>
+  <line x1="40" y1="40" x2="40" y2="8" stroke="#4A3527" stroke-width="2.5"/>
+  <path d="M41 10 L41 32 L62 34 Z" fill="#FBF2E3" stroke="#4A3527" stroke-width="1.5"/>
+</svg>
+
+<header>
+  <h1>AI마법사 묵호를 추억하다</h1>
+  <p class="quote">파도가 놓고 간 노을과, 골목마다 마르지 않던 웃음이 있던 그 바다마을, 묵호.</p>
+  <div class="wave-wrap">
+    <div class="wave-track">
+      <svg viewBox="0 0 200 26" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 16 Q10 4 20 16 T40 16 T60 16 T80 16 T100 16 T120 16 T140 16 T160 16 T180 16 T200 16"
+              fill="none" stroke="#8FC1BA" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <svg viewBox="0 0 200 26" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 16 Q10 4 20 16 T40 16 T60 16 T80 16 T100 16 T120 16 T140 16 T160 16 T180 16 T200 16"
+              fill="none" stroke="#8FC1BA" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    </div>
   </div>
+</header>
+
+<main>
+  <div class="stage-wrap">
+    <div class="frame">
+      <div class="tape tl"></div>
+      <div class="tape br"></div>
+      <div class="stage" id="stage">
+        <div class="status" id="status">사진을 불러오는 중이에요… 🌊</div>
+      </div>
+      <div class="badge" id="badge" style="display:none;"></div>
+    </div>
+  </div>
+</main>
+
+<div class="player" id="player" style="display:none;">
+  <div class="disc" id="disc"></div>
+  <button class="play-toggle" id="playToggle" aria-label="재생/일시정지">▶</button>
+  <div class="track-info" id="trackInfo">음악을 불러오는 중…</div>
 </div>
 
-<div id="crosshair"></div>
-<div id="hud">WASD 이동 · SPACE 점프 · SHIFT 달리기 · MOUSE 시선</div>
-<div id="label"></div>
-<div id="nowPlaying"></div>
-<div id="loadingStatus"></div>
+<footer>묵호, 그 바다를 오래 기억하려고 만든 작은 갤러리</footer>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
+<div class="music-start hidden" id="musicStart">
+  <button id="musicStartBtn">🎵 눌러서 음악과 함께 보기</button>
+</div>
 
-<script type="module">
-import * as THREE from 'three';
-import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+<script>
+/* =========================================================
+   ⚓ CONFIG — 여기만 내 정보로 바꿔주세요
+   GitHub에 사진을 올린 저장소/브랜치/폴더 경로를 입력합니다.
+   예) https://github.com/myid/mukho-gallery 의 main 브랜치,
+       photos 폴더에 사진을 올렸다면 아래처럼 설정합니다.
+   ========================================================= */
+  const CONFIG = {
+    owner:  "YOUR_GITHUB_USERNAME",   // 예: "hong-gildong"
+    repo:   "YOUR_REPO_NAME",         // 예: "mukho-gallery"
+    branch: "main",                   // 기본 브랜치명 (main 또는 master)
+    path:   "photos",                 // 사진이 들어있는 폴더 경로 ("" 이면 저장소 최상위)
+    intervalMs: 5000,                 // 사진이 넘어가는 간격(ms)
 
-/* ---------------------------------------------------------
-   깃허브 저장소 설정
-   - 이 저장소의 "photos" 폴더 안에 있는 jpg를 자동으로 불러온다.
-   - 저장소 이름/계정을 바꾸면 아래 두 값을 그에 맞게 수정해야 한다.
---------------------------------------------------------- */
-const GITHUB_OWNER = 'ruby0424c-ops';
-const GITHUB_REPO   = 'aimajic';
-const GITHUB_BRANCH = 'main';
-const PHOTOS_PATH   = 'photos';
+    musicPath: "music",               // 음악이 들어있는 폴더 경로 ("" 이면 저장소 최상위)
+    musicLoop: true,                  // 목록을 끝까지 재생하면 처음부터 반복할지
+    musicShuffle: false,              // true면 곡 순서를 섞어서 재생
+    musicVolume: 0.6                  // 초기 볼륨 (0.0 ~ 1.0)
+  };
+/* ========================================================= */
 
-/* ---------------------------------------------------------
-   기본 설정 - 회색 바닥 / 흰 벽의 단순한 직선 복도형 갤러리
-   전부 unlit(MeshBasicMaterial) 머티리얼만 사용해 조명 계산 자체가 없다 -> 가볍고 버퍼링 없음
---------------------------------------------------------- */
-const CORR_W = 6;
-const WALL_H = 3.2;
-const WALL_MARGIN = 0.6;
-const FRAME_W = 1.7, FRAME_H = 1.3;
-const SPACING = 2.1;
-const START_BUFFER = 5.5;
-const END_BUFFER = 3;
-let CORR_LEN = 18;
+  const stage = document.getElementById('stage');
+  const statusEl = document.getElementById('status');
+  const badge = document.getElementById('badge');
+  const frame = document.querySelector('.frame');
 
-const FLOOR_COLOR = 0xb0b0b0;
-const WALL_COLOR  = 0xffffff;
+  const IMG_EXT = /\.(jpe?g|png|webp|gif|avif)$/i;
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xe8e8e8);
-
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 1.6, CORR_LEN/2 - 2.5);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-document.body.appendChild(renderer.domElement);
-
-/* ---------------------------------------------------------
-   텍스트 캔버스 텍스처 (입구 사인용, 1회만 생성)
---------------------------------------------------------- */
-function makeTextTexture(lines, opts = {}) {
-  const w = opts.w || 1024, h = opts.h || 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = opts.bg || 'rgba(0,0,0,0)';
-  ctx.fillRect(0, 0, w, h);
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const mainSize = opts.mainSize || 80, subSize = opts.subSize || 28;
-  ctx.font = `700 ${mainSize}px 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif`;
-  ctx.fillStyle = opts.color || '#1c1c1c';
-  ctx.fillText(lines[0], w/2, h/2 - (lines[1] ? mainSize*0.35 : 0));
-  if (lines[1]) {
-    ctx.font = `400 ${subSize}px 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif`;
-    ctx.fillStyle = opts.subColor || '#8a8a8a';
-    ctx.letterSpacing = '4px';
-    ctx.fillText(lines[1], w/2, h/2 + mainSize*0.55);
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-/* ---------------------------------------------------------
-   사진을 가벼운 텍스처로 변환 (원본 대신 축소본 사용, 밉맵 생성 안 함)
---------------------------------------------------------- */
-function makeLightTexture(img, maxDim = 900) {
-  let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-  if (Math.max(w, h) > maxDim) {
-    const scale = maxDim / Math.max(w, h);
-    w = Math.max(1, Math.round(w * scale));
-    h = Math.max(1, Math.round(h * scale));
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = w; canvas.height = h;
-  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.generateMipmaps = false;
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  return tex;
-}
-
-/* ---------------------------------------------------------
-   깔끔한 액자 (프레임 + 매트 + 사진, 전부 unlit 평면 3장)
---------------------------------------------------------- */
-const artworkHitboxes = [];
-
-function mountArtwork({ x, y, z, ry, title, sub, img }) {
-  const group = new THREE.Group();
-
-  let w = FRAME_W, h = FRAME_H;
-  if (img) {
-    const aspect = (img.naturalWidth || img.width) / (img.naturalHeight || img.height);
-    const frameAspect = FRAME_W / FRAME_H;
-    if (aspect > frameAspect) { w = FRAME_W; h = FRAME_W / aspect; }
-    else { h = FRAME_H; w = FRAME_H * aspect; }
+  function setStatus(html){
+    stage.innerHTML = `<div class="status" id="status">${html}</div>`;
   }
 
-  const frame = new THREE.Mesh(
-    new THREE.PlaneGeometry(FRAME_W + 0.12, FRAME_H + 0.12),
-    new THREE.MeshBasicMaterial({ color: 0x222222 })
-  );
-  group.add(frame);
+  async function loadImages(){
+    const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.path}?ref=${CONFIG.branch}`;
+    try{
+      const res = await fetch(apiUrl);
+      if(!res.ok){
+        throw new Error(`GitHub API 응답 오류 (${res.status})`);
+      }
+      const data = await res.json();
+      const files = (Array.isArray(data) ? data : [])
+        .filter(item => item.type === 'file' && IMG_EXT.test(item.name))
+        .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}));
 
-  const mat = new THREE.Mesh(
-    new THREE.PlaneGeometry(FRAME_W + 0.04, FRAME_H + 0.04),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
-  );
-  mat.position.z = 0.005;
-  group.add(mat);
+      if(files.length === 0){
+        setStatus(`이 폴더에서 사진을 찾지 못했어요.<br>저장소의 <b>${CONFIG.path || '/'}</b> 경로를 확인해주세요.`);
+        return;
+      }
 
-  const tex = img ? makeLightTexture(img) : null;
-  const art = new THREE.Mesh(
-    new THREE.PlaneGeometry(w, h),
-    new THREE.MeshBasicMaterial({ map: tex, color: tex ? 0xffffff : 0xd8d8d8 })
-  );
-  art.position.z = 0.01;
-  group.add(art);
-
-  group.position.set(x, y, z);
-  group.rotation.y = ry;
-  scene.add(group);
-  artworkHitboxes.push({ group, title, sub });
-  return group;
-}
-
-/* ---------------------------------------------------------
-   배경음악: 저작권 걱정 없는 생성형 앰비언트 사운드
-   (음원 파일을 전혀 쓰지 않고, 브라우저에서 그때그때 소리를 합성한다)
---------------------------------------------------------- */
-const nowPlayingEl = document.getElementById('nowPlaying');
-let audioCtx = null;
-
-function startAmbientMusic() {
-  if (audioCtx) return;
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-  const master = audioCtx.createGain();
-  master.gain.value = 0.07;
-  master.connect(audioCtx.destination);
-
-  const delay = audioCtx.createDelay();
-  delay.delayTime.value = 0.45;
-  const feedback = audioCtx.createGain();
-  feedback.gain.value = 0.32;
-  delay.connect(feedback);
-  feedback.connect(delay);
-  delay.connect(master);
-
-  const scale = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25]; // C 펜타토닉 계열
-
-  function pluck() {
-    if (!audioCtx) return;
-    const base = scale[Math.floor(Math.random() * scale.length)];
-    const freq = Math.random() < 0.3 ? base * 2 : base;
-    const osc = audioCtx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    const gain = audioCtx.createGain();
-    gain.gain.value = 0;
-    osc.connect(gain);
-    gain.connect(master);
-    gain.connect(delay);
-    const now = audioCtx.currentTime;
-    gain.gain.linearRampToValueAtTime(0.45, now + 0.06);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 2.4);
-    osc.start(now);
-    osc.stop(now + 2.5);
-    setTimeout(pluck, 1300 + Math.random() * 1700);
+      const urls = files.map(f => f.download_url);
+      startSlideshow(urls);
+    }catch(err){
+      setStatus(
+        `사진을 불러오지 못했어요 🙇<br>` +
+        `상단 스크립트의 CONFIG(owner / repo / branch / path)를 확인해주세요.<br>` +
+        `<small>${err.message}</small>`
+      );
+    }
   }
-  pluck();
 
-  const pad = audioCtx.createOscillator();
-  pad.type = 'sine';
-  pad.frequency.value = 130.81; // C3 낮은 드론
-  const padGain = audioCtx.createGain();
-  padGain.gain.value = 0.02;
-  pad.connect(padGain);
-  padGain.connect(master);
-  pad.start();
+  function startSlideshow(urls){
+    stage.innerHTML = `
+      <div class="slide" id="layerA"></div>
+      <div class="slide" id="layerB"></div>
+    `;
+    const layers = [document.getElementById('layerA'), document.getElementById('layerB')];
+    let active = 0;
+    let current = 0;
 
-  nowPlayingEl.textContent = '♪ 앰비언트 배경음 (생성형)';
-  nowPlayingEl.style.opacity = '1';
-}
+    badge.style.display = 'block';
 
-/* ---------------------------------------------------------
-   깃허브 저장소의 photos 폴더 목록을 자동으로 가져오기
---------------------------------------------------------- */
-async function fetchPhotoList() {
-  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${PHOTOS_PATH}?ref=${GITHUB_BRANCH}`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!Array.isArray(data)) return [];
-    return data.filter((f) => f.type === 'file' && /\.(jpe?g)$/i.test(f.name));
-  } catch (e) {
-    return [];
+    function preload(src){
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = src;
+      });
+    }
+
+    async function show(index){
+      const url = urls[index];
+      const next = layers[(active + 1) % 2];
+      const cur = layers[active];
+
+      await preload(url);
+      next.style.backgroundImage = `url("${url}")`;
+
+      requestAnimationFrame(() => {
+        next.classList.add('active');
+        cur.classList.remove('active');
+      });
+
+      active = (active + 1) % 2;
+      badge.textContent = `${index + 1} / ${urls.length}`;
+
+      // 매 전환마다 액자를 아주 살짝 다르게 기울여 손으로 놓은 듯한 느낌
+      const tilt = (Math.random() * 1.6 - 0.8).toFixed(2);
+      frame.style.transform = `rotate(${tilt}deg)`;
+    }
+
+    show(current);
+    if(urls.length > 1){
+      setInterval(() => {
+        current = (current + 1) % urls.length;
+        show(current);
+      }, CONFIG.intervalMs);
+    }
   }
-}
 
-function loadImageEl(url) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
-}
+  loadImages();
 
-/* ---------------------------------------------------------
-   방(바닥/벽) - 즉시 만들어진다
---------------------------------------------------------- */
-function buildRoom(imageCount) {
-  const perSide = Math.max(1, Math.ceil(imageCount / 2));
-  const usableLen = Math.max(perSide - 1, 0) * SPACING;
-  CORR_LEN = Math.max(18, usableLen + START_BUFFER + END_BUFFER);
-  camera.position.set(0, 1.6, CORR_LEN/2 - 2.5);
+  /* ---------- 🎵 음악 자동 재생 ---------- */
+  const AUDIO_EXT = /\.(mp3|wav|ogg|m4a|aac|flac)$/i;
 
-  const floorMat = new THREE.MeshBasicMaterial({ color: FLOOR_COLOR });
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(CORR_W, CORR_LEN), floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  scene.add(floor);
+  const player = document.getElementById('player');
+  const disc = document.getElementById('disc');
+  const playToggle = document.getElementById('playToggle');
+  const trackInfo = document.getElementById('trackInfo');
+  const musicStart = document.getElementById('musicStart');
+  const musicStartBtn = document.getElementById('musicStartBtn');
 
-  const wallMat = new THREE.MeshBasicMaterial({ color: WALL_COLOR });
-  const ceilMat = new THREE.MeshBasicMaterial({ color: 0xf5f5f5 });
+  const audio = new Audio();
+  audio.volume = CONFIG.musicVolume;
+  audio.preload = 'auto';
 
-  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(CORR_W, CORR_LEN), ceilMat);
-  ceiling.rotation.x = Math.PI / 2;
-  ceiling.position.y = WALL_H;
-  scene.add(ceiling);
+  let tracks = [];
+  let trackIndex = 0;
 
-  function addWall(w, h, x, y, z, ry) {
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat);
-    wall.position.set(x, y, z);
-    wall.rotation.y = ry;
-    scene.add(wall);
+  function trackTitle(name){
+    return name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
   }
-  addWall(CORR_LEN, WALL_H, -CORR_W/2, WALL_H/2, 0, Math.PI/2);
-  addWall(CORR_LEN, WALL_H, CORR_W/2, WALL_H/2, 0, -Math.PI/2);
-  addWall(CORR_W, WALL_H, 0, WALL_H/2, -CORR_LEN/2, 0);
 
-  const doorW = 2.6;
-  const southSegW = (CORR_W - doorW) / 2;
-  if (southSegW > 0.05) {
-    [-(doorW/2 + southSegW/2), (doorW/2 + southSegW/2)].forEach((x) => {
-      addWall(southSegW, WALL_H, x, WALL_H/2, CORR_LEN/2, Math.PI);
+  function playTrack(i){
+    trackIndex = (i + tracks.length) % tracks.length;
+    const t = tracks[trackIndex];
+    audio.src = t.download_url;
+    trackInfo.textContent = trackTitle(t.name);
+    audio.play().then(() => {
+      player.classList.add('playing');
+      playToggle.textContent = '❚❚';
+      musicStart.classList.add('hidden');
+    }).catch(() => {
+      // 브라우저가 자동재생을 막았을 때: 사용자의 첫 터치를 기다립니다
+      player.classList.remove('playing');
+      playToggle.textContent = '▶';
+      musicStart.classList.remove('hidden');
     });
   }
 
-  const signTex = makeTextTexture(
-    ['AI 마법사 묵호 추억 갤러리', 'AI WIZARD MUKHO — MEMORY GALLERY'],
-    { mainSize: 58, subSize: 20 }
-  );
-  const sign = new THREE.Mesh(
-    new THREE.PlaneGeometry(5.6, 1.4),
-    new THREE.MeshBasicMaterial({ map: signTex, transparent: true })
-  );
-  sign.position.set(0, WALL_H - 0.3, CORR_LEN/2 - 0.03);
-  sign.rotation.y = Math.PI;
-  scene.add(sign);
+  audio.addEventListener('ended', () => {
+    if(tracks.length <= 1 && !CONFIG.musicLoop) return;
+    let next = CONFIG.musicShuffle
+      ? Math.floor(Math.random() * tracks.length)
+      : trackIndex + 1;
+    if(next >= tracks.length){
+      if(!CONFIG.musicLoop) return;
+      next = 0;
+    }
+    playTrack(next);
+  });
 
-  return { zTop: CORR_LEN/2 - START_BUFFER };
-}
+  playToggle.addEventListener('click', () => {
+    if(audio.paused){
+      audio.play().then(() => {
+        player.classList.add('playing');
+        playToggle.textContent = '❚❚';
+        musicStart.classList.add('hidden');
+      }).catch(()=>{});
+    }else{
+      audio.pause();
+      player.classList.remove('playing');
+      playToggle.textContent = '▶';
+    }
+  });
 
-/* ---------------------------------------------------------
-   작품을 하나씩 스트리밍 배치 (동시 4장까지만 디코딩, 로드되는 대로 즉시 표시)
---------------------------------------------------------- */
-const loadingStatusEl = document.getElementById('loadingStatus');
+  musicStartBtn.addEventListener('click', () => {
+    audio.play().then(() => {
+      player.classList.add('playing');
+      playToggle.textContent = '❚❚';
+      musicStart.classList.add('hidden');
+    }).catch(()=>{});
+  });
 
-async function mountArtworksStreaming(photoFiles, layout) {
-  const { zTop } = layout;
-  const total = photoFiles.length;
-  if (total === 0) return;
-  let done = 0;
-  loadingStatusEl.textContent = `사진을 불러오는 중... (0/${total})`;
-  loadingStatusEl.style.opacity = '1';
+  async function loadMusic(){
+    const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.musicPath}?ref=${CONFIG.branch}`;
+    try{
+      const res = await fetch(apiUrl);
+      if(!res.ok) throw new Error(`GitHub API 응답 오류 (${res.status})`);
+      const data = await res.json();
+      tracks = (Array.isArray(data) ? data : [])
+        .filter(item => item.type === 'file' && AUDIO_EXT.test(item.name))
+        .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}));
 
-  let nextIndex = 0;
-  const CONCURRENCY = 4;
+      if(tracks.length === 0){
+        player.style.display = 'none';
+        return;
+      }
 
-  async function worker() {
-    while (nextIndex < photoFiles.length) {
-      const i = nextIndex++;
-      const file = photoFiles[i];
-      const img = await loadImageEl(file.download_url);
-      const side = i % 2 === 0 ? -1 : 1;
-      const slot = Math.floor(i / 2);
-      const z = zTop - slot * SPACING;
-      mountArtwork({
-        x: side * (CORR_W/2 - 0.08), y: 1.7, z, ry: side < 0 ? Math.PI/2 : -Math.PI/2,
-        title: `작품 ${i + 1}`, sub: file.name, img
-      });
-      done++;
-      loadingStatusEl.textContent = `사진을 불러오는 중... (${done}/${total})`;
-      await new Promise((resolve) => requestAnimationFrame(resolve));
+      player.style.display = 'flex';
+      if(CONFIG.musicShuffle){
+        trackIndex = Math.floor(Math.random() * tracks.length);
+      }
+      playTrack(trackIndex);
+    }catch(err){
+      player.style.display = 'none';
+      console.warn('음악을 불러오지 못했어요:', err.message);
     }
   }
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, photoFiles.length) }, worker));
-  loadingStatusEl.style.opacity = '0';
-}
 
-/* ---------------------------------------------------------
-   입장 처리
---------------------------------------------------------- */
-const controls = new PointerLockControls(camera, renderer.domElement);
-const blocker = document.getElementById('blocker');
-const enterBtn = document.getElementById('enterBtn');
-const fileStatus = document.getElementById('fileStatus');
-const label = document.getElementById('label');
-
-let photoFiles = [];
-let sceneBuilt = false;
-let buildStarted = false;
-
-// 페이지가 열리자마자(사용자 동작 없이) 저장소의 photos 폴더 목록을 미리 가져온다.
-(async () => {
-  photoFiles = await fetchPhotoList();
-  if (photoFiles.length === 0) {
-    fileStatus.textContent = `"${PHOTOS_PATH}" 폴더에서 jpg를 찾지 못했습니다. 저장소에 사진을 올려주세요.`;
-  } else {
-    fileStatus.textContent = `사진 ${photoFiles.length}장을 찾았습니다.`;
-  }
-  enterBtn.disabled = false; // 사진이 없어도 빈 갤러리는 구경할 수 있게 허용
-})();
-
-// 포인터락은 클릭 이벤트 안에서 즉시(동기적으로) 호출해야 브라우저가 허용한다.
-enterBtn.addEventListener('click', () => {
-  controls.lock();
-  startAmbientMusic();
-  if (!buildStarted) {
-    buildStarted = true;
-    const layout = buildRoom(photoFiles.length);
-    sceneBuilt = true;
-    mountArtworksStreaming(photoFiles, layout);
-  }
-});
-
-controls.addEventListener('lock', () => { blocker.style.display = 'none'; });
-controls.addEventListener('unlock', () => { blocker.style.display = 'flex'; });
-
-/* ---------------------------------------------------------
-   1인칭 이동 + 중력/점프/달리기
---------------------------------------------------------- */
-const move = { forward: false, back: false, left: false, right: false, run: false };
-let velocityY = 0;
-let canJump = true;
-const EYE_HEIGHT = 1.6;
-const GRAVITY = 20;
-const JUMP_SPEED = 7.5;
-const WALK_SPEED = 3.2;
-const RUN_SPEED = 6.0;
-
-document.addEventListener('keydown', (e) => {
-  switch (e.code) {
-    case 'KeyW': case 'ArrowUp': move.forward = true; break;
-    case 'KeyS': case 'ArrowDown': move.back = true; break;
-    case 'KeyA': case 'ArrowLeft': move.left = true; break;
-    case 'KeyD': case 'ArrowRight': move.right = true; break;
-    case 'ShiftLeft': case 'ShiftRight': move.run = true; break;
-    case 'Space': if (canJump) { velocityY = JUMP_SPEED; canJump = false; } break;
-  }
-});
-document.addEventListener('keyup', (e) => {
-  switch (e.code) {
-    case 'KeyW': case 'ArrowUp': move.forward = false; break;
-    case 'KeyS': case 'ArrowDown': move.back = false; break;
-    case 'KeyA': case 'ArrowLeft': move.left = false; break;
-    case 'KeyD': case 'ArrowRight': move.right = false; break;
-    case 'ShiftLeft': case 'ShiftRight': move.run = false; break;
-  }
-});
-
-const forwardVec = new THREE.Vector3();
-const rightVec = new THREE.Vector3();
-const moveVec = new THREE.Vector3();
-
-function updateMovement(delta) {
-  const speed = move.run ? RUN_SPEED : WALK_SPEED;
-  camera.getWorldDirection(forwardVec);
-  forwardVec.y = 0; forwardVec.normalize();
-  rightVec.crossVectors(forwardVec, camera.up).normalize();
-
-  moveVec.set(0, 0, 0);
-  if (move.forward) moveVec.add(forwardVec);
-  if (move.back) moveVec.sub(forwardVec);
-  if (move.right) moveVec.add(rightVec);
-  if (move.left) moveVec.sub(rightVec);
-  if (moveVec.lengthSq() > 0) moveVec.normalize().multiplyScalar(speed * delta);
-
-  const pos = controls.getObject().position;
-  const halfW = CORR_W/2 - WALL_MARGIN;
-  const halfD = CORR_LEN/2 - WALL_MARGIN;
-
-  pos.x = Math.max(-halfW, Math.min(halfW, pos.x + moveVec.x));
-  pos.z = Math.max(-halfD, Math.min(halfD, pos.z + moveVec.z));
-
-  velocityY -= GRAVITY * delta;
-  pos.y += velocityY * delta;
-  if (pos.y <= EYE_HEIGHT) { pos.y = EYE_HEIGHT; velocityY = 0; canJump = true; }
-}
-
-function updateLabels() {
-  const camPos = controls.getObject().position;
-  let nearest = null, nearestDist = 2.6;
-  for (const a of artworkHitboxes) {
-    const d = camPos.distanceTo(a.group.position);
-    if (d < nearestDist) { nearestDist = d; nearest = a; }
-  }
-  if (nearest) { label.textContent = `${nearest.title} — ${nearest.sub}`; label.style.opacity = '1'; }
-  else { label.style.opacity = '0'; }
-}
-
-const clock = new THREE.Clock();
-function animate() {
-  requestAnimationFrame(animate);
-  const delta = Math.min(clock.getDelta(), 0.05);
-  if (controls.isLocked && sceneBuilt) { updateMovement(delta); updateLabels(); }
-  renderer.render(scene, camera);
-}
-animate();
-
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+  loadMusic();
 </script>
+
 </body>
 </html>
