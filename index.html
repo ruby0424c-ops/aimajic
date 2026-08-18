@@ -130,6 +130,7 @@
     width: min(94vw, 960px);
   }
 
+  /* 깔끔하고 넓은 액자: 사진이 주인공이 되도록 여백을 최소화 */
   .frame{
     position:relative;
     background: var(--paper);
@@ -191,6 +192,7 @@
     z-index:3;
   }
 
+  /* 마지막 바다 사진과 함께 뜨는 문구 */
   .ending-caption{
     position:absolute;
     left:0; right:0;
@@ -253,6 +255,7 @@
     50%{ transform: translateY(-10px); }
   }
 
+  /* 음악 플레이어 */
   .player{
     position:relative;
     z-index:2;
@@ -344,6 +347,15 @@
     .stage{ height: min(52vh, 520px); }
     .deco{ display:none; }
   }
+
+  @media (prefers-reduced-motion: reduce){
+    .slide img{ animation:none; }
+    .slide{ transition: opacity .4s ease; }
+    .wave-track{ animation:none; }
+    .deco{ animation:none; }
+    .title-row{ animation:none; }
+    .sparkle{ animation:none; }
+  }
 </style>
 </head>
 <body>
@@ -353,6 +365,18 @@
   <rect width="100%" height="100%" filter="url(#noise)"/>
 </svg>
 
+<svg class="deco gull1" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M2 14 Q15 -2 30 12 Q45 -2 58 14" stroke="#2E5266" stroke-width="2.4" stroke-linecap="round"/>
+</svg>
+<svg class="deco gull2" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M2 14 Q15 -2 30 12 Q45 -2 58 14" stroke="#2E5266" stroke-width="2.4" stroke-linecap="round"/>
+</svg>
+<svg class="deco boat" viewBox="0 0 80 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 40 L70 40 L60 54 L20 54 Z" fill="#E8825A"/>
+  <line x1="40" y1="40" x2="40" y2="8" stroke="#4A3527" stroke-width="2.5"/>
+  <path d="M41 10 L41 32 L62 34 Z" fill="#FBF2E3" stroke="#4A3527" stroke-width="1.5"/>
+</svg>
+
 <header>
   <div class="title-row">
     <svg class="sparkle" viewBox="0 0 24 24" fill="var(--cherry)"><path d="M12 0 L14 9 L24 12 L14 15 L12 24 L10 15 L0 12 L10 9 Z"/></svg>
@@ -360,6 +384,18 @@
     <svg class="sparkle s2" viewBox="0 0 24 24" fill="var(--mustard)"><path d="M12 0 L14 9 L24 12 L14 15 L12 24 L10 15 L0 12 L10 9 Z"/></svg>
   </div>
   <p class="quote">파도가 놓고 간 노을과, 골목마다 마르지 않는 웃음이 있던 그 바다마을, 묵호.</p>
+  <div class="wave-wrap">
+    <div class="wave-track">
+      <svg viewBox="0 0 200 26" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 16 Q10 4 20 16 T40 16 T60 16 T80 16 T100 16 T120 16 T140 16 T160 16 T180 16 T200 16"
+              fill="none" stroke="#8FC1BA" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <svg viewBox="0 0 200 26" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 16 Q10 4 20 16 T40 16 T60 16 T80 16 T100 16 T120 16 T140 16 T160 16 T180 16 T200 16"
+              fill="none" stroke="#8FC1BA" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
 </header>
 
 <main>
@@ -389,32 +425,96 @@
 
 <script>
 /* =========================================================
-   ⚓ CONFIG - 파일 이름 목록 직접 지정
+   ⚓ CONFIG — 여기만 내 정보로 바꿔주세요
    ========================================================= */
   const CONFIG = {
+    owner:  "ruby0424c-ops",
+    repo:   "aimajic",
+    branch: "main",
+    path:   "",
     intervalMs: 5000,
+
+    // 마지막에 보여줄 바다 사진 (photos 폴더 안 파일명을 정확히 적어주세요)
+    // 비워두면 폴더 안에서 이름순으로 가장 마지막 사진이 자동으로 사용됩니다.
+    endingPhoto: "",
     endingLines: ["근혜, 슬기, 봉자, 루비..", "행복했죠, 우리?"],
 
-    // 최상위 폴더에 있는 이미지 파일명을 여기에 적어주세요.
-    images: [
-      "1.jpg",
-      "2.jpg",
-      "3.jpg"
-    ],
-
-    // 최상위 폴더에 있는 음악 파일명을 여기에 적어주세요.
-    music: [
-      "bgm.mp3"
-    ],
-
+    musicPath: "",
     musicLoop: true,
+    musicShuffle: false,
     musicVolume: 0.6,
-    musicFadeMs: 2200
+    musicFadeMs: 2200   // 곡이 바뀔 때 서서히 줄어들고 늘어나는 시간(ms)
   };
 /* ========================================================= */
 
   const stage = document.getElementById('stage');
   const badge = document.getElementById('badge');
+
+  const IMG_EXT = /\.(jpe?g|png|webp|gif|avif)$/i;
+
+  function setStatus(html){
+    stage.innerHTML = `<div class="status" id="status">${html}</div>`;
+  }
+
+  // GitHub API 대신 jsDelivr CDN을 통해 저장소 파일 목록을 가져옵니다.
+  // (요청 제한이 훨씬 넉넉하고, 파일 서빙 속도도 더 빠릅니다)
+  let repoTreeCache = null;
+  async function getRepoTree(){
+    if(repoTreeCache) return repoTreeCache;
+    const url = `https://data.jsdelivr.com/v1/packages/gh/${CONFIG.owner}/${CONFIG.repo}@${CONFIG.branch}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`jsDelivr 조회 오류 (${res.status})`);
+    const data = await res.json();
+    repoTreeCache = data;
+    return data;
+  }
+
+  async function listFolder(path){
+    const data = await getRepoTree();
+    let node = { files: data.files };
+    const parts = (path || '').split('/').filter(Boolean);
+    for(const part of parts){
+      const found = (node.files || []).find(f => f.type === 'directory' && f.name === part);
+      if(!found) return [];
+      node = found;
+    }
+    return (node.files || [])
+      .filter(f => f.type === 'file')
+      .map(f => ({
+        name: f.name,
+        url: `https://cdn.jsdelivr.net/gh/${CONFIG.owner}/${CONFIG.repo}@${CONFIG.branch}/${parts.concat(f.name).join('/')}`
+      }));
+  }
+
+  async function loadImages(){
+    try{
+      let files = (await listFolder(CONFIG.path))
+        .filter(f => IMG_EXT.test(f.name))
+        .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}));
+
+      if(files.length === 0){
+        setStatus(`이 폴더에서 사진을 찾지 못했어요.<br>저장소의 <b>${CONFIG.path || '/'}</b> 경로를 확인해주세요.`);
+        return;
+      }
+
+      // 지정한 엔딩 사진을 맨 뒤로 이동
+      if(CONFIG.endingPhoto){
+        const idx = files.findIndex(f => f.name.toLowerCase() === CONFIG.endingPhoto.toLowerCase());
+        if(idx > -1){
+          const [ending] = files.splice(idx, 1);
+          files.push(ending);
+        }
+      }
+
+      startSlideshow(files.map(f => f.url));
+    }catch(err){
+      setStatus(
+        `사진을 불러오지 못했어요 🙇<br>` +
+        `상단 스크립트의 CONFIG(owner / repo / branch / path)를 확인해주세요.<br>` +
+        `<small>${err.message}</small>`
+      );
+    }
+  }
 
   function startSlideshow(urls){
     stage.innerHTML = `
@@ -474,13 +574,11 @@
     }
   }
 
-  if(CONFIG.images.length > 0){
-    startSlideshow(CONFIG.images);
-  } else {
-    stage.innerHTML = `<div class="status">사진 파일명을 CONFIG.images 목록에 입력해주세요.</div>`;
-  }
+  loadImages();
 
-  /* ---------- 🎵 음악 재생 ---------- */
+  /* ---------- 🎵 음악 자동 재생 (서서히 페이드 인/아웃) ---------- */
+  const AUDIO_EXT = /\.(mp3|wav|ogg|m4a|aac|flac)$/i;
+
   const player = document.getElementById('player');
   const playToggle = document.getElementById('playToggle');
   const trackInfo = document.getElementById('trackInfo');
@@ -488,35 +586,124 @@
   const musicStartBtn = document.getElementById('musicStartBtn');
 
   const audio = new Audio();
-  audio.volume = CONFIG.musicVolume;
+  audio.volume = 0;
+  audio.preload = 'auto';
 
-  if(CONFIG.music.length > 0){
-    player.style.display = 'flex';
-    trackInfo.textContent = CONFIG.music[0];
-    audio.src = CONFIG.music[0];
+  let tracks = [];
+  let trackIndex = 0;
+  let fading = false;
+  let fadeRAF = null;
 
-    playToggle.addEventListener('click', () => {
-      if(audio.paused){
-        audio.play().then(() => {
-          player.classList.add('playing');
-          playToggle.textContent = '❚❚';
-          musicStart.classList.add('hidden');
-        });
+  function trackTitle(name){
+    return name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+  }
+
+  function fadeVolume(target, duration){
+    if(fadeRAF) cancelAnimationFrame(fadeRAF);
+    const start = audio.volume;
+    const startTime = performance.now();
+    function step(now){
+      const t = Math.min(1, (now - startTime) / duration);
+      audio.volume = start + (target - start) * t;
+      if(t < 1){
+        fadeRAF = requestAnimationFrame(step);
       }else{
-        audio.pause();
-        player.classList.remove('playing');
-        playToggle.textContent = '▶';
+        fadeRAF = null;
       }
-    });
+    }
+    fadeRAF = requestAnimationFrame(step);
+  }
 
-    musicStartBtn.addEventListener('click', () => {
+  function playTrack(i, opts = {}){
+    trackIndex = (i + tracks.length) % tracks.length;
+    const t = tracks[trackIndex];
+    audio.src = t.download_url;
+    trackInfo.textContent = trackTitle(t.name);
+    audio.volume = 0;
+    audio.play().then(() => {
+      player.classList.add('playing');
+      playToggle.textContent = '❚❚';
+      musicStart.classList.add('hidden');
+      fadeVolume(CONFIG.musicVolume, CONFIG.musicFadeMs);
+    }).catch(() => {
+      player.classList.remove('playing');
+      playToggle.textContent = '▶';
+      musicStart.classList.remove('hidden');
+    });
+  }
+
+  // 곡이 끝나갈 때 서서히 볼륨을 줄이고, 끝나면 다음 곡을 서서히 올림
+  audio.addEventListener('timeupdate', () => {
+    if(fading || !audio.duration || isNaN(audio.duration)) return;
+    const remaining = (audio.duration - audio.currentTime) * 1000;
+    if(remaining <= CONFIG.musicFadeMs){
+      fading = true;
+      fadeVolume(0, Math.max(remaining, 200));
+    }
+  });
+
+  audio.addEventListener('ended', () => {
+    fading = false;
+    if(tracks.length === 0) return;
+    let next = CONFIG.musicShuffle
+      ? Math.floor(Math.random() * tracks.length)
+      : trackIndex + 1;
+    if(next >= tracks.length){
+      if(!CONFIG.musicLoop) return;
+      next = 0;
+    }
+    playTrack(next);
+  });
+
+  playToggle.addEventListener('click', () => {
+    if(audio.paused){
       audio.play().then(() => {
         player.classList.add('playing');
         playToggle.textContent = '❚❚';
         musicStart.classList.add('hidden');
-      });
-    });
+        fadeVolume(CONFIG.musicVolume, 600);
+      }).catch(()=>{});
+    }else{
+      fadeVolume(0, 500);
+      setTimeout(() => audio.pause(), 520);
+      player.classList.remove('playing');
+      playToggle.textContent = '▶';
+    }
+  });
+
+  musicStartBtn.addEventListener('click', () => {
+    audio.play().then(() => {
+      player.classList.add('playing');
+      playToggle.textContent = '❚❚';
+      musicStart.classList.add('hidden');
+      fadeVolume(CONFIG.musicVolume, CONFIG.musicFadeMs);
+    }).catch(()=>{});
+  });
+
+  async function loadMusic(){
+    try{
+      tracks = (await listFolder(CONFIG.musicPath))
+        .filter(f => AUDIO_EXT.test(f.name))
+        .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}))
+        .map(f => ({ name: f.name, download_url: f.url }));
+
+      if(tracks.length === 0){
+        player.style.display = 'none';
+        return;
+      }
+
+      player.style.display = 'flex';
+      if(CONFIG.musicShuffle){
+        trackIndex = Math.floor(Math.random() * tracks.length);
+      }
+      playTrack(trackIndex);
+    }catch(err){
+      player.style.display = 'none';
+      console.warn('음악을 불러오지 못했어요:', err.message);
+    }
   }
+
+  loadMusic();
 </script>
 
 </body>
