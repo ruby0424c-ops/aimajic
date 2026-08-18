@@ -459,9 +459,11 @@
   // GitHub API 대신 jsDelivr CDN을 통해 저장소 파일 목록을 가져옵니다.
   // (요청 제한이 훨씬 넉넉하고, 파일 서빙 속도도 더 빠릅니다)
   let repoTreeCache = null;
+  let useGithubFallback = false;
+
   async function getRepoTree(){
     if(repoTreeCache) return repoTreeCache;
-    const url = `https://data.jsdelivr.com/v1/packages/gh/${CONFIG.owner}/${CONFIG.repo}@${CONFIG.branch}`;
+    const url = `https://data.jsdelivr.com/v1/package/gh/${CONFIG.owner}/${CONFIG.repo}@${CONFIG.branch}`;
     const res = await fetch(url);
     if(!res.ok) throw new Error(`jsDelivr 조회 오류 (${res.status})`);
     const data = await res.json();
@@ -469,21 +471,41 @@
     return data;
   }
 
+  // jsDelivr가 막히면(50MB 용량 제한 등) GitHub API로 자동 대체
+  async function listFolderGithub(path){
+    const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path}?ref=${CONFIG.branch}`;
+    const res = await fetch(apiUrl);
+    if(!res.ok) throw new Error(`GitHub API 조회 오류 (${res.status})`);
+    const data = await res.json();
+    return (Array.isArray(data) ? data : [])
+      .filter(item => item.type === 'file')
+      .map(item => ({ name: item.name, url: item.download_url }));
+  }
+
   async function listFolder(path){
-    const data = await getRepoTree();
-    let node = { files: data.files };
-    const parts = (path || '').split('/').filter(Boolean);
-    for(const part of parts){
-      const found = (node.files || []).find(f => f.type === 'directory' && f.name === part);
-      if(!found) return [];
-      node = found;
+    if(useGithubFallback){
+      return listFolderGithub(path);
     }
-    return (node.files || [])
-      .filter(f => f.type === 'file')
-      .map(f => ({
-        name: f.name,
-        url: `https://cdn.jsdelivr.net/gh/${CONFIG.owner}/${CONFIG.repo}@${CONFIG.branch}/${parts.concat(f.name).join('/')}`
-      }));
+    try{
+      const data = await getRepoTree();
+      let node = { files: data.files };
+      const parts = (path || '').split('/').filter(Boolean);
+      for(const part of parts){
+        const found = (node.files || []).find(f => f.type === 'directory' && f.name === part);
+        if(!found) return [];
+        node = found;
+      }
+      return (node.files || [])
+        .filter(f => f.type === 'file')
+        .map(f => ({
+          name: f.name,
+          url: `https://cdn.jsdelivr.net/gh/${CONFIG.owner}/${CONFIG.repo}@${CONFIG.branch}/${parts.concat(f.name).join('/')}`
+        }));
+    }catch(err){
+      // jsDelivr 실패 시 GitHub API로 한 번만 자동 전환해서 재시도
+      useGithubFallback = true;
+      return listFolderGithub(path);
+    }
   }
 
   async function loadImages(){
