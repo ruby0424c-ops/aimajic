@@ -380,13 +380,13 @@
        photos 폴더에 사진을 올렸다면 아래처럼 설정합니다.
    ========================================================= */
   const CONFIG = {
-    owner:  "YOUR_GITHUB_USERNAME",   // 예: "hong-gildong"
-    repo:   "YOUR_REPO_NAME",         // 예: "mukho-gallery"
+    owner:  "ruby0424c-ops",          // GitHub 아이디
+    repo:   "aimajic",                // 저장소 이름
     branch: "main",                   // 기본 브랜치명 (main 또는 master)
-    path:   "photos",                 // 사진이 들어있는 폴더 경로 ("" 이면 저장소 최상위)
+    path:   "",                       // 사진이 저장소 최상위에 있음
     intervalMs: 5000,                 // 사진이 넘어가는 간격(ms)
 
-    musicPath: "music",               // 음악이 들어있는 폴더 경로 ("" 이면 저장소 최상위)
+    musicPath: "",                    // 음악도 저장소 최상위에 있음
     musicLoop: true,                  // 목록을 끝까지 재생하면 처음부터 반복할지
     musicShuffle: false,              // true면 곡 순서를 섞어서 재생
     musicVolume: 0.6                  // 초기 볼륨 (0.0 ~ 1.0)
