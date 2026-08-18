@@ -190,6 +190,37 @@
     transform: translateY(0);
   }
 
+  .nav-btn{
+    position:absolute;
+    top:50%;
+    transform: translateY(-50%);
+    width:42px; height:42px;
+    border-radius:50%;
+    border:none;
+    background: rgba(74,53,39,0.45);
+    color:#fff;
+    font-size:1.5rem;
+    line-height:1;
+    cursor:pointer;
+    z-index:6;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+    transition: background .2s ease, transform .2s ease;
+  }
+  .nav-btn:hover{ background: rgba(74,53,39,0.72); }
+  .nav-btn:active{ transform: translateY(-50%) scale(0.92); }
+  .nav-btn.show{ display:flex; }
+  .nav-prev{ left:-4px; }
+  .nav-next{ right:-4px; }
+
+  @media (max-width: 520px){
+    .nav-btn{ width:36px; height:36px; font-size:1.25rem; }
+    .nav-prev{ left:-2px; }
+    .nav-next{ right:-2px; }
+  }
+
   .badge{
     position:absolute;
     bottom: 12px; right: 16px;
@@ -384,6 +415,8 @@
         <div class="status" id="status">사진을 불러오는 중이에요… 🌊</div>
       </div>
       <div class="badge" id="badge" style="display:none;"></div>
+      <button class="nav-btn nav-prev" id="prevBtn" aria-label="이전 사진">‹</button>
+      <button class="nav-btn nav-next" id="nextBtn" aria-label="다음 사진">›</button>
     </div>
   </div>
 </main>
@@ -425,6 +458,8 @@
   const statusEl = document.getElementById('status');
   const badge = document.getElementById('badge');
   const frame = document.querySelector('.frame');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
 
   const IMG_EXT = /\.(jpe?g|png|webp|gif|avif)$/i;
 
@@ -469,10 +504,18 @@
       </div>
     `;
     const layers = [document.getElementById('layerA'), document.getElementById('layerB')];
+    const overlay = document.getElementById('endingOverlay');
     let active = 0;
     let current = 0;
+    let timer = null;
+    let ended = false;
 
     badge.style.display = 'block';
+
+    if(urls.length > 1){
+      prevBtn.classList.add('show');
+      nextBtn.classList.add('show');
+    }
 
     function preload(src){
       return new Promise(resolve => {
@@ -504,35 +547,58 @@
       frame.style.transform = `rotate(${tilt}deg)`;
     }
 
-    show(current);
-    if(urls.length > 1){
-      const tick = () => {
-        if(current >= urls.length - 1){
-          // 마지막 사진까지 다 보여준 뒤, 잠시 머물다 엔딩으로 전환
-          setTimeout(triggerEnding, CONFIG.intervalMs);
-          return;
-        }
-        setTimeout(() => {
-          current += 1;
-          show(current);
-          tick();
-        }, CONFIG.intervalMs);
-      };
-      tick();
-    } else {
-      // 사진이 한 장뿐이어도 잠시 보여준 뒤 엔딩으로 전환
-      setTimeout(triggerEnding, CONFIG.intervalMs);
+    function clearTimer(){
+      if(timer){ clearTimeout(timer); timer = null; }
+    }
+
+    function scheduleAdvance(){
+      clearTimer();
+      timer = setTimeout(() => goTo(current + 1), CONFIG.intervalMs);
+    }
+
+    function hideEnding(){
+      if(!ended) return;
+      ended = false;
+      overlay.classList.remove('show');
+      badge.style.display = 'block';
     }
 
     function triggerEnding(){
+      clearTimer();
+      ended = true;
       layers.forEach(l => l.classList.remove('active'));
       badge.style.display = 'none';
-      const overlay = document.getElementById('endingOverlay');
-      if(overlay){
-        requestAnimationFrame(() => overlay.classList.add('show'));
-      }
+      requestAnimationFrame(() => overlay.classList.add('show'));
       fadeOutAudio();
     }
+
+    function goTo(index){
+      if(index >= urls.length){
+        triggerEnding();
+        return;
+      }
+      hideEnding();
+      current = ((index % urls.length) + urls.length) % urls.length;
+      show(current);
+      scheduleAdvance();
+    }
+
+    prevBtn.addEventListener('click', () => {
+      if(ended){
+        goTo(urls.length - 1);
+      }else{
+        goTo(current - 1);
+      }
+    });
+    nextBtn.addEventListener('click', () => {
+      if(ended){
+        goTo(0);
+      }else{
+        goTo(current + 1);
+      }
+    });
+
+    goTo(0);
   }
 
   loadImages();
