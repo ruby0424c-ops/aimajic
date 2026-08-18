@@ -456,14 +456,40 @@
     stage.innerHTML = `<div class="status" id="status">${html}</div>`;
   }
 
+  // GitHub API 대신 jsDelivr CDN을 통해 저장소 파일 목록을 가져옵니다.
+  // (요청 제한이 훨씬 넉넉하고, 파일 서빙 속도도 더 빠릅니다)
+  let repoTreeCache = null;
+  async function getRepoTree(){
+    if(repoTreeCache) return repoTreeCache;
+    const url = `https://data.jsdelivr.com/v1/packages/gh/${CONFIG.owner}/${CONFIG.repo}@${CONFIG.branch}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`jsDelivr 조회 오류 (${res.status})`);
+    const data = await res.json();
+    repoTreeCache = data;
+    return data;
+  }
+
+  async function listFolder(path){
+    const data = await getRepoTree();
+    let node = { files: data.files };
+    const parts = (path || '').split('/').filter(Boolean);
+    for(const part of parts){
+      const found = (node.files || []).find(f => f.type === 'directory' && f.name === part);
+      if(!found) return [];
+      node = found;
+    }
+    return (node.files || [])
+      .filter(f => f.type === 'file')
+      .map(f => ({
+        name: f.name,
+        url: `https://cdn.jsdelivr.net/gh/${CONFIG.owner}/${CONFIG.repo}@${CONFIG.branch}/${parts.concat(f.name).join('/')}`
+      }));
+  }
+
   async function loadImages(){
-    const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.path}?ref=${CONFIG.branch}`;
     try{
-      const res = await fetch(apiUrl);
-      if(!res.ok) throw new Error(`GitHub API 응답 오류 (${res.status})`);
-      const data = await res.json();
-      let files = (Array.isArray(data) ? data : [])
-        .filter(item => item.type === 'file' && IMG_EXT.test(item.name))
+      let files = (await listFolder(CONFIG.path))
+        .filter(f => IMG_EXT.test(f.name))
         .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}));
 
       if(files.length === 0){
@@ -480,7 +506,7 @@
         }
       }
 
-      startSlideshow(files.map(f => f.download_url));
+      startSlideshow(files.map(f => f.url));
     }catch(err){
       setStatus(
         `사진을 불러오지 못했어요 🙇<br>` +
@@ -655,14 +681,11 @@
   });
 
   async function loadMusic(){
-    const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.musicPath}?ref=${CONFIG.branch}`;
     try{
-      const res = await fetch(apiUrl);
-      if(!res.ok) throw new Error(`GitHub API 응답 오류 (${res.status})`);
-      const data = await res.json();
-      tracks = (Array.isArray(data) ? data : [])
-        .filter(item => item.type === 'file' && AUDIO_EXT.test(item.name))
-        .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}));
+      tracks = (await listFolder(CONFIG.musicPath))
+        .filter(f => AUDIO_EXT.test(f.name))
+        .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}))
+        .map(f => ({ name: f.name, download_url: f.url }));
 
       if(tracks.length === 0){
         player.style.display = 'none';
